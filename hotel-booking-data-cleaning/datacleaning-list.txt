@@ -1,0 +1,10 @@
+- children column data types -> int64
+- combine country data from the dataset and UN country codes https://unstats.un.org/unsd/methodology/m49/
+- Clean additional spaces from:
+	- meal
+	- reserved_room_type 
+	- assigned_room_type
+	- deposit_type
+	- agent
+	- company
+- Fix CN TWN TMP country codes
