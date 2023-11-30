@@ -1,38 +1,32 @@
-![header](./img/huy-hung-trinh-unsplash.jpg)
+# Maven Toys Sales Analysis
 
-# Toy Store Sales Analysis
+## Quick Links
 
-## 🚨 Situation
+### [Tableau Dashboard](https://public.tableau.com/views/MavenToysSalesDashboard_16958918265180/Overview?:language=en-US&:display_count=n&:origin=viz_share_link) | [Dataset](https://mavenanalytics.io/data-playground)
 
-In this project, I performed an analysis of sales and inventory data for a fictitious chain of toy stores in Mexico called Maven Toys.
+# Business Problem
 
-## 📜 Task
-The goal of this project is to understand the sales trends and optimize stocking levels for the stores.
+Maven Toys is a fictitious toy store in Mexico that has 50 stores and sells more than 30 kinds of products. They are aiming to improve their business operations and maximize the profitability of their products.
 
-## 👨‍💻 Action
+# Business Task
 
-1. **Data Collection**: I began by gathering all the data from [Maven Analytics's Data Playground](https://mavenanalytics.io/data-playground) site. I downloaded the dataset that consists of the sales, stores, products, and the current inventory data for the Maven Toys Store. All the data in the dataset are in `.csv` format.
+Maven Toys have compiled their sales and inventory record data but it was too difficult to understand their products’ overall sales performance and how well they handle stockings for their products.
 
-2. [**Data Preparation and Cleaning**](./sql/data_cleaning.sql): I cleaned the data before performing the analysis by fixing the formatting, checking for duplicates, fixing data types, and spelling errors.
+The goal of this project was to perform analysis on the sales and inventory data the business has using SQL and create an executive dashboard using Tableau to help the business gain the information they needs at their fingertips.
 
-3. [**Sales Analysis**](./sql/analysis.sql): I performed an in-depth sales analysis by looking at the overall sales trends, seasonal trends, and product performances. Using complex queries and statistical methods to identify the impact of holidays on sales, finding the top-performing products/product categories, and top-selling store location.
+# Approach
 
-![code](./img/code.png)
-*Code from the project*
+With the dataset in hand, I fed the data into SQL Server to process and perform analysis on the business's sales performance and to understand their current inventory levels by joining relevant data, using CTEs, and CASE statements.
 
-4. [**Inventory Analysis**](./sql/analysis.sql): Using the latest inventory data, I performed an analysis to understand the overall product inventory value, how many products are out-of-stock by stores, and the total sales potential from those out-of-stock products.
+*Full code [here](./sql/analysis.sql)*
 
-5. [**Sales/Inventory Management Dashboard**](https://public.tableau.com/views/MavenToysSalesDashboard_16958918265180/Overview?:language=en-US&:display_count=n&:origin=viz_share_link): I created a user-friendly dashboard using Tableau to monitor the sales and manage the inventory stocks of Maven Toys.
+![Code from the project](./img/code.png)
+*Code from project*
 
-![dashboard](./img/dashboard.gif)
-*Tableau Dashboard*
+I then used Tableau to create an interactive dashboard that will help the business gain insight into their sales performance, product performance, and current inventory by showing metrics using KPIs, data drill-down, and advanced tables with relevant information based on the data provided.
 
-## 🚀 Result
+![Tableau dashboard](./img/dashboard.gif)
 
-Some insights from this project are as follow:
+# Result
 
-1. A high number of sales happened on holidays, especially the ones that are related to kids, like Children's Day, Three Kings' Day, and Christmas, with sales generated as high as 3 times the normal day's sales on average.
-
-2. Optimize stocks for weekends and holidays to prevent potential sales lost from out-of-stock items.
-
-3. 4.9% of total inventory is out-of-stock across all stores, resulting in a potential sales loss of $52,000.
+With the dashboard, the business could gain insights easily through relevant metrics and data to improve their business operations and maximize the profitability of their products.
