@@ -51,8 +51,6 @@ FROM (
 
 -- Create a temp table to retrieve data from the Sales, Products, and Stores table
 DROP TABLE
-
-
 IF EXISTS #SalesMasterTable;
 	SELECT sal.Sale_ID,
 		sal.[Date],
@@ -126,55 +124,6 @@ GROUP BY DATEPART(MONTH, [Date]),
 ORDER BY DATEPART(MONTH, [Date]);
 
 
--- Month-Day sales
--- Generate list of day
-DECLARE @DayColumn VARCHAR(MAX) = '',
-	@DayCounter INT = 1;
-
-
-WHILE @DayCounter <= 31
-BEGIN
-	SELECT @DayColumn += QUOTENAME(CAST(@DayCounter AS VARCHAR(MAX))) + ','
-
-
-	SET @DayCounter += 1
-END
-
-
--- Remove the trailing comma at the end of the list
-SET @DayColumn = LEFT(@DayColumn, LEN(@DayColumn) - 1)
-
-
--- Declare dynamic SQL
-DECLARE @DynamicSQL NVARCHAR(MAX) = ''
-
-
-SET @DynamicSQL = 
-	'
-SELECT *
-FROM
-(
-	SELECT 
-		Sales, 
-		DATENAME(MONTH, [Date]) AS MonthName, 
-		DATEPART(MONTH, [Date]) AS MonthNum,
-		DATEPART(DAY, [Date]) AS DayNum
-	FROM #SalesMasterTable
-	WHERE YEAR([Date]) = ' 
-	+ '2017' + '
-) AS t
-PIVOT(
-	SUM(Sales)
-	FOR DayNum IN (' + @DayColumn + 
-	')
-) AS PivotTable
-ORDER BY PivotTable.MonthNum;';
-
-
--- Execute the dynamic SQL
-EXEC sp_executesql @DynamicSQL;
-
-
 -- Weekday sales
 SELECT DATEPART(WEEKDAY, [Date]) AS WeekdayNum,
 	DATENAME(WEEKDAY, [Date]) AS WeekdayName,
@@ -185,7 +134,7 @@ GROUP BY DATEPART(WEEKDAY, [Date]),
 ORDER BY DATEPART(WEEKDAY, [Date]);
 
 
--- Holiday events sales
+-- 10 days with the highest sales
 WITH DailySales
 AS (
 	SELECT [Date],
@@ -319,14 +268,6 @@ SELECT AVG(TotalSalesbyCity) AS AvgSalesbyCity
 FROM SalesbyCity;
 
 
--- Sales by city
-SELECT Store_City,
-	ROUND(SUM(Sales), 1) AS SalesbyCity
-FROM #SalesMasterTable
-GROUP BY Store_City
-ORDER BY SUM(Sales) DESC;
-
-
 -- Sales by store location
 SELECT Store_Location,
 	ROUND(SUM(Sales), 1) AS TotalSalesbyStoreLocation
@@ -352,21 +293,22 @@ WITH ProductSalesbyStoreLocation
 AS (
 	SELECT Store_Location,
 		Product_Category,
-		SUM(Profit) AS TotalProfit,
 		ROUND(SUM(Sales), 1) AS TotalSales,
+		SUM(Profit) AS TotalProfit,
 		RANK() OVER (
-			PARTITION BY Store_Location ORDER BY SUM(Profit) DESC
-			) AS ProfitRank
+			PARTITION BY Store_Location ORDER BY SUM(Sales) DESC
+			) AS Sales_Rank
 	FROM #SalesMasterTable
 	GROUP BY Store_Location,
 		Product_Category
 	)
 SELECT Store_Location,
+	Sales_Rank,
 	Product_Category,
-	TotalProfit,
-	TotalSales
+	TotalSales,
+	TotalProfit
 FROM ProductSalesbyStoreLocation
-WHERE ProfitRank = 1;
+ORDER BY Store_Location ASC, TotalSales DESC;
 
 
 
@@ -392,7 +334,7 @@ INNER JOIN Products AS p
 	ON i.Product_ID = p.Product_ID;
 
 
--- Average product out-of-stock per store
+-- Total stockout product
 WITH ProductStockperStore
 AS (
 	SELECT Store_ID,
@@ -405,8 +347,8 @@ AS (
 	)
 SELECT ROUND(AVG(100 * CAST(OutofStock AS FLOAT) / (InStock + OutofStock)
 		), 1) AS PercentageOutofStock,
-	ROUND(AVG(100 * CAST(InStock AS FLOAT) / (InStock + OutofStock)), 1) 
-	AS PercentageInfStock
+	ROUND(AVG(100 * CAST(InStock AS FLOAT) / (InStock + OutofStock)), 1)
+	AS PercentageInStock
 FROM ProductStockperStore;
 
 
@@ -431,60 +373,55 @@ FROM ProductStockperStore
 ORDER BY CAST(Store_ID AS TINYINT);
 
 
--- Potential sales per store by out-of-stock product
-WITH ProductSalesperDay
-AS (
-	SELECT [Date],
-		Product_ID,
+-- Potential sales per store by stockout products
+WITH DailyStoreProductSales AS (
+	SELECT [DATE], Product_ID,
+		Store_ID,
 		SUM(Sales) AS DailySales
 	FROM #SalesMasterTable
-	GROUP BY [Date],
-		Product_ID
-	),
-AvgProductSales
-AS (
-	SELECT Product_ID,
-		ROUND(AVG(DailySales), 2) AS AvgSales
-	FROM ProductSalesperDay
-	GROUP BY Product_ID
-	)
-SELECT s.Store_Name,
-	SUM(AvgSales) AS PotentialSales
-FROM AvgProductSales AS t
-INNER JOIN Inventory AS i
-	ON t.Product_ID = i.Product_ID
-INNER JOIN Stores AS s
-	ON i.Store_ID = s.Store_ID
-WHERE i.Stock_On_Hand = 0
-GROUP BY s.Store_Name
-ORDER BY SUM(AvgSales) DESC;
+	GROUP BY [DATE], Product_ID,
+		Store_ID
+),
+StoreAvgUnitSold AS (
+	SELECT Product_ID, Store_ID, AVG(DailySales) AS AvgSales
+	FROM DailyStoreProductSales
+	GROUP BY Product_ID, Store_ID
+)
+SELECT s.Store_ID, ROUND(SUM(AvgSales), 1) AS SalesLost
+FROM StoreAvgUnitSold AS s
+	JOIN Inventory AS i
+		ON s.Product_ID = i.Product_ID
+		AND s.Store_ID = i.Store_ID
+		AND Stock_On_Hand = 0
+GROUP BY s.Store_ID
+ORDER BY s.Store_ID;
 
 
--- Potential sales lost total
-WITH ProductSalesperDay
-AS (
-	SELECT [Date],
-		Product_ID,
+-- Sales lost total
+WITH DailyStoreProductSales AS (
+	SELECT [DATE], Product_ID,
+		Store_ID,
 		SUM(Sales) AS DailySales
 	FROM #SalesMasterTable
-	GROUP BY [Date],
-		Product_ID
-	),
-AvgProductSales
-AS (
-	SELECT Product_ID,
-		ROUND(AVG(DailySales), 2) AS AvgSales
-	FROM ProductSalesperDay
-	GROUP BY Product_ID
-	)
-SELECT SUM(AvgSales) AS PotentialSalesTotal
-FROM AvgProductSales AS t
-INNER JOIN Inventory AS i
-	ON t.Product_ID = i.Product_ID
-INNER JOIN Stores AS s
-	ON i.Store_ID = s.Store_ID
-WHERE i.Stock_On_Hand = 0
-ORDER BY SUM(AvgSales) DESC;
+	GROUP BY [DATE], Product_ID,
+		Store_ID
+),
+StoreAvgUnitSold AS (
+	SELECT Product_ID, Store_ID, AVG(DailySales) AS AvgSales
+	FROM DailyStoreProductSales
+	GROUP BY Product_ID, Store_ID
+),
+SalesLostbyStore AS (
+	SELECT s.Store_ID, ROUND(SUM(AvgSales), 1) AS SalesLost
+	FROM StoreAvgUnitSold AS s
+		JOIN Inventory AS i
+			ON s.Product_ID = i.Product_ID
+			AND s.Store_ID = i.Store_ID
+			AND Stock_On_Hand = 0
+	GROUP BY s.Store_ID
+)
+SELECT SUM(SalesLost) AS potential_sales_lost
+FROM SalesLostbyStore;
 
 
 -- Finding out how long the current stock last based on daily units sold
@@ -492,7 +429,7 @@ WITH UnitSoldperDay
 AS (
 	SELECT [Date],
 		SUM(Units) AS UnitSold
-	FROM #SalesMasterTable
+	FROM Sales
 	GROUP BY [Date]
 	)
 SELECT SUM(Stock_On_Hand) / (
